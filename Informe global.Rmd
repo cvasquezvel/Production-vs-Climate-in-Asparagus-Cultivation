@@ -1,0 +1,327 @@
+---
+title: "Reporte Histórico de Producción vs Clima en el cultivo de espárrago"
+author: "Christian Vásquez Velasco"
+position: "Analista de Proyecciones Agrícolas"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::robobook:
+    self_contained: true
+---
+
+```{=html}
+<style>
+body {
+text-align: justify}
+</style>
+```
+```{r setup, include=FALSE}
+options(scipen = 9999,
+        max.print = 9999)
+library(ggplot2)
+library(lubridate)
+library(readxl)
+library(reshape2)
+library(tibbletime)
+library(dplyr)
+library(extrafont)
+library(ggthemes)
+library(tidyverse)
+library(gridExtra)
+library(ggrepel)
+```
+
+# Objetivo
+
+-   Evaluar la influencia del clima sobre el rendimiento del espárrago.
+
+```{r, echo = F, include=F, message=FALSE, warning=FALSE, comment = NA, fig.align='center', fig.width=6, fig.height=4}
+dat <- read_xlsx("D:/11. Estadísticos/Espárrago/Informes/Series de tiempo clima vs rendimiento/combi.xlsx", sheet = "Hoja2")
+
+dat$Date <- as.Date(dat$Fin, format = "%m/%d/%y")
+dat <- as_tbl_time(dat, index = Date)%>%
+  filter(Date >= as.Date("2019-01-01"))
+```
+
+# Resultados
+
+```{r, echo = F,message=FALSE, warning=FALSE,comment = NA, fig.align='center',fig.width=10,fig.height=5}
+datos1 <- dat%>%
+  group_by(Date)%>%
+  summarise(Kg_Ha = mean(na.omit(Kg_Ha)),
+            Tmax = mean(Tmax),
+            Tmin = mean(Tmin),
+            Tmed = mean(Tmed),
+            Radiacion = mean(Radiacion),
+            Humedad = mean(Humedad),
+            ETP = mean(ETP))%>%
+  mutate(Kg_Ha = replace_na(Kg_Ha,0))
+
+datos3 <- dat%>%
+  group_by(Date)%>%
+  summarise(Tmax = mean(Tmax),
+            Tmin = mean(Tmin),
+            Tmed = mean(Tmed),
+            Radiacion = mean(Radiacion),
+            Humedad = mean(Humedad),
+            ETP = mean(ETP),
+            Hcalor = mean(Hcalor),
+            Hfrio = mean(Hfrio))
+```
+
+## Temperatura
+
+```{r, echo = F,message=FALSE, warning=FALSE,comment = NA, fig.align='center',fig.width=10,fig.height=5}
+ggplot(dat, aes(x = Date)) + 
+  geom_line(dat,mapping=aes(y = Tmed, colour = "TempMed")) +
+  geom_line(dat,mapping=aes(y = Tmax, colour = "TempMax")) +
+  geom_line(dat,mapping=aes(y = Tmin, colour = "TempMin")) +
+  geom_line(mapping=aes(y = Kg_Total/12000, colour = "Kg_Total"),
+            size = 1) +
+  scale_y_continuous(limits = c(0,40), breaks=0:100*5,
+                     sec.axis = sec_axis(~.*12000,name="Rendimiento Total",
+                                         breaks=0:100*50000)) +
+  scale_x_date(date_labels = "%b/%y", date_breaks = "1 month") +
+  xlab("Fecha") +  ylab ("Temperatura (ºC)") + 
+  labs(colour = "",
+       title = "Reporte histórico de temperatura y fases productivas del cultivo espárrago",
+       subtitle = "Fuente: Variables meteorológicas F5_14-10-2021.xlsx"
+       )+
+  # scale_colour_gradient2(low = "blue", mid = "green" , high = "red", midpoint = 22) + 
+  theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1),
+        legend.position = "bottom") +
+  theme(text=element_text(family="Times New Roman", size=10))+
+  # facet_grid(rows = vars(Variedad))+
+  scale_color_manual(breaks=c("Kg_Total","TempMax","TempMin","TempMed"),
+                     values = c("#00B9E3","#F8766D","#93AA00","#DB72FB"))+
+  geom_hline(yintercept = c(24,15),linetype = "dashed", colour = c("red","blue"),
+           size = 0.5)+
+  annotate(geom = "vline",
+             x = as.Date(c("2021-11-15",
+                           "2021-06-15", "2021-09-17",
+                   "2020-06-01","2020-09-06",
+                   "2020-11-03","2021-02-06",
+                   "2019-06-03","2019-10-25",
+                   "2019-11-04","2020-01-24")),
+             xintercept = as.Date(c("2021-11-15",
+                           "2021-06-15", "2021-09-17",
+                   "2020-06-01","2020-09-06",
+                   "2020-11-03","2021-02-06",
+                   "2019-06-03","2019-10-25",
+                   "2019-11-04","2020-01-24")),
+             linetype = c("dashed"))+
+  annotate(geom = "text",
+             label = c("Inicio Campaña 2021-II",
+                       "Inicio Campaña 2021-I", "Fin Campaña 2021-I",
+                   "Inicio Campaña 2020-I","Fin Campaña 2020-I",
+                   "Inicio Campaña 2020-II","Fin Campaña 2020-II",
+                   "Inicio Campaña 2019-I","Fin Campaña 2019-I",
+                   "Inicio Campaña 2019-II","Fin Campaña 2019-II"),
+             x = as.Date(c("2021-11-15",
+                           "2021-06-15", "2021-09-17",
+                   "2020-06-01","2020-09-06",
+                   "2020-11-03","2021-02-06",
+                   "2019-06-03","2019-10-25",
+                   "2019-11-04","2020-01-24")),
+             y = 3.5,
+             angle = 90, 
+             vjust = 1,
+           size = 2)+
+  geom_point(data = dat%>%filter(Date %in% as.Date(c("2021-11-13",
+                           "2021-06-12", "2021-09-18",
+                   "2020-05-30","2020-09-05",
+                   "2020-10-31","2021-02-06",
+                   "2019-06-01","2019-10-12",
+                   "2019-11-02","2020-01-25"))), 
+           aes(x = Date, y = Tmin), colour = "red", size = 5, shape = 1)+ 
+  geom_point(data = dat%>%filter(Date %in% as.Date(c("2021-11-13",
+                           "2021-06-12", "2021-09-18",
+                   "2020-05-30","2020-09-05",
+                   "2020-10-31","2021-02-06",
+                   "2019-06-01","2019-10-12",
+                   "2019-11-02","2020-01-25"))), 
+           aes(x = Date, y = Tmax), colour = "red", size = 5, shape = 1)+ 
+  geom_point(data = dat%>%filter(Date %in% as.Date(c("2021-11-13",
+                           "2021-06-12", "2021-09-18",
+                   "2020-05-30","2020-09-05",
+                   "2020-10-31","2021-02-06",
+                   "2019-06-01","2019-10-12",
+                   "2019-11-02","2020-01-25"))), 
+           aes(x = Date, y = Tmed), colour = "red", size = 5, shape = 1)+
+  annotate(
+    geom = "curve", x = as.Date("2021-06-12"), y = 16.7, xend = as.Date("2021-04-12"), yend = 16, 
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))
+  )+
+  annotate(geom = "label", x = as.Date("2021-02-25"), y = 14, label = "-0.6 °C", hjust = "left",
+           size = 4, fill = "red", color = "white")+ 
+  annotate(
+    geom = "curve", x = as.Date("2021-06-12"), y = 22.1, xend = as.Date("2021-04-12"), yend = 22.5, 
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))
+  )+
+  annotate(geom = "label", x = as.Date("2021-02-25"), y = 20.5, label = "-0.5 °C", hjust = "left",
+           size = 4, fill = "red", color = "white")+ 
+  annotate(
+    geom = "curve", x = as.Date("2021-06-12"), y = 27.5, xend = as.Date("2021-04-12"), yend = 33.5, 
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))
+  )+
+  annotate(geom = "label", x = as.Date("2021-03-10"), y = 35.5, label = "-0.5 °C", hjust = "left",
+           size = 4, fill = "red", color = "white")+ 
+  annotate(
+    geom = "curve", x = as.Date("2021-11-13"), y = 14.3, xend = as.Date("2021-09-25"), yend = 12.5, 
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))
+  )+
+  annotate(geom = "label", x = as.Date("2021-07-20"), y = 10.5, label = "-0.3 °C", hjust = "left",
+           size = 4, fill = "red", color = "white")+ 
+  annotate(
+    geom = "curve", x = as.Date("2021-11-13"), y = 25.1, xend = as.Date("2021-10-25"), yend = 36, 
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))
+  )+
+  annotate(geom = "label", x = as.Date("2021-10-12"), y = 37.5, label = "-1 °C", hjust = "left",
+           size = 4, fill = "red", color = "white")+
+  annotate(
+    geom = "curve", x = as.Date("2021-11-13"), y = 19.7, xend = as.Date("2021-10-05"), yend = 30, 
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))
+  )+
+  annotate(geom = "label", x = as.Date("2021-08-25"), y = 31.5, label = "-0.7 °C", hjust = "left",
+           size = 4, fill = "red", color = "white")+
+  annotate("rect", fill = "red", alpha = 0.1, 
+        xmin = as.Date("2019-01-01"), xmax = as.Date("2019-12-31"),
+        ymin = -Inf, ymax = Inf)+
+    annotate("rect", fill = "green", alpha = 0.1, 
+        xmin = as.Date("2020-01-01"), xmax = as.Date("2020-12-31"),
+        ymin = -Inf, ymax = Inf)+
+    annotate("rect", fill = "blue", alpha = 0.1, 
+        xmin = as.Date("2021-01-01"), xmax = as.Date("2021-11-15"),
+        ymin = -Inf, ymax = Inf)+
+  geom_label_repel(data = dat%>%filter(Date %in% as.Date(c("2021-11-13",
+                                                     "2021-06-12", "2021-09-18",
+                   "2020-05-30","2020-09-05",
+                   "2020-10-31","2021-02-06",
+                   "2019-06-01","2019-10-12",
+                   "2019-11-02","2020-01-25"))), 
+           aes(x = Date, y = Tmin+1, label = round(Tmin,1)),
+             angle = 90, 
+             vjust = 0,
+           hjust = 0.5, size = 3, fill = "#93AA00", color = "white")+ 
+  geom_label_repel(data = dat%>%filter(Date %in% as.Date(c("2021-11-13",
+                                                     "2021-06-12", "2021-09-18",
+                   "2020-05-30","2020-09-05",
+                   "2020-10-31","2021-02-06",
+                   "2019-06-01","2019-10-12",
+                   "2019-11-02","2020-01-25"))), 
+           aes(x = Date, y = Tmax+1, label = round(Tmax,1)),
+             angle = 90, 
+             vjust = 0,
+           hjust = 0.5, size = 3, fill = "#F8766D", color = "white")+ 
+  geom_label_repel(data = dat%>%filter(Date %in% as.Date(c("2021-11-13",
+                                                     "2021-06-12", "2021-09-18",
+                   "2020-05-30","2020-09-05",
+                   "2020-10-31","2021-02-06",
+                   "2019-06-01","2019-10-12",
+                   "2019-11-02","2020-01-25"))), 
+           aes(x = Date, y = Tmed+1, label = round(Tmed,1)),
+             angle = 90, 
+             vjust = 0,
+           hjust = 0.5, size = 3, fill = "#DB72FB", color = "white")
+  
+```
+
+## Radiación Solar
+
+```{r, echo = F,message=FALSE, warning=FALSE,comment = NA, fig.align='center',fig.width=10,fig.height=5}
+ggplot(dat, aes(x = Date)) + 
+  geom_line(dat,mapping=aes(y = Radiacion, colour = "Radiación Solar")) +
+  geom_line(mapping=aes(y = Kg_Total/300, colour = "Kg_Total"),
+            size = 1) +
+  scale_y_continuous(limits = c(0,1350), breaks=0:100*100,
+                     sec.axis = sec_axis(~.*300,name="Rendimiento Total",
+                                         breaks=0:100*50000)) +
+  scale_x_date(date_labels = "%b/%y", date_breaks = "1 month") +
+  xlab("Fecha") +  ylab ("W/m²") + labs(colour = "",
+       title = "Reporte histórico de radiación solar y fases productivas del cultivo espárrago",
+       subtitle = "Fuente: Variables meteorológicas F5_14-10-2021.xlsx"
+       )+
+  # scale_colour_gradient2(low = "blue", mid = "green" , high = "red", midpoint = 22) + 
+  theme_bw()+
+  theme(axis.text.x=element_text(angle=90, hjust=1),
+        legend.position = "bottom") +
+  theme(text=element_text(family="Times New Roman", size=10))+
+  # facet_grid(rows = vars(Variedad))+
+  scale_color_manual(breaks=c("Kg_Total","Radiación Solar"),
+                     values = c("#00B9E3","#F8766D"))+
+  annotate(geom = "vline",
+             x = as.Date(c("2021-11-15",
+                           "2021-06-15", "2021-09-17",
+                   "2020-06-01","2020-09-06",
+                   "2020-11-03","2021-02-06",
+                   "2019-06-03","2019-10-25",
+                   "2019-11-04","2020-01-24")),
+             xintercept = as.Date(c("2021-11-15",
+                           "2021-06-15", "2021-09-17",
+                   "2020-06-01","2020-09-06",
+                   "2020-11-03","2021-02-06",
+                   "2019-06-03","2019-10-25",
+                   "2019-11-04","2020-01-24")),
+             linetype = c("dashed"))+
+  annotate(geom = "text",
+             label = c("Inicio Campaña 2021-II",
+                       "Inicio Campaña 2021-I", "Fin Campaña 2021-I",
+                   "Inicio Campaña 2020-I","Fin Campaña 2020-I",
+                   "Inicio Campaña 2020-II","Fin Campaña 2020-II",
+                   "Inicio Campaña 2019-I","Fin Campaña 2019-I",
+                   "Inicio Campaña 2019-II","Fin Campaña 2019-II"),
+             x = as.Date(c("2021-11-15",
+                           "2021-06-15", "2021-09-17",
+                   "2020-06-01","2020-09-06",
+                   "2020-11-03","2021-02-06",
+                   "2019-06-03","2019-10-25",
+                   "2019-11-04","2020-01-24")),
+             y = 1200,
+             angle = 90, 
+             vjust = 1,
+           size = 2)+
+  geom_point(data = dat%>%filter(Date %in% as.Date(c("2021-11-06",
+                           "2021-06-12", "2021-09-18","2021-06-05",
+                   "2020-05-30","2020-09-05",
+                   "2020-10-31","2021-02-06",
+                   "2019-06-01","2019-10-12",
+                   "2019-11-02","2020-01-25"))), 
+           aes(x = Date, y = Radiacion), colour = "red", size = 5, shape = 1)+ 
+  annotate(
+    geom = "curve", x = as.Date("2021-06-05"), y = 315, xend = as.Date("2021-04-12"), yend = 480, 
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))
+  )+
+  annotate(geom = "label", x = as.Date("2021-01-12"), y = 580, label = "60 % menor\nradiación", hjust = "left",
+           size = 4, fill = "red", color = "white")+ 
+  annotate(
+    geom = "curve", x = as.Date("2021-09-18"), y = 907, xend = as.Date("2021-09-18"), yend = 680, 
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))
+  )+
+  annotate(geom = "label", x = as.Date("2021-07-18"), y = 600, label = "20 % mayor\nradiación", hjust = "left",
+           size = 4, fill = "blue", color = "white")+
+  annotate(
+    geom = "curve", x = as.Date("2021-11-06"), y = 902, xend = as.Date("2021-10-13"), yend = 680, 
+    curvature = .3, arrow = arrow(length = unit(2, "mm"))
+  )+
+  annotate("rect", fill = "red", alpha = 0.1, 
+        xmin = as.Date("2019-01-01"), xmax = as.Date("2019-12-31"),
+        ymin = -Inf, ymax = Inf)+
+    annotate("rect", fill = "green", alpha = 0.1, 
+        xmin = as.Date("2020-01-01"), xmax = as.Date("2020-12-31"),
+        ymin = -Inf, ymax = Inf)+
+    annotate("rect", fill = "blue", alpha = 0.1, 
+        xmin = as.Date("2021-01-01"), xmax = as.Date("2021-11-15"),
+        ymin = -Inf, ymax = Inf)+
+  geom_label_repel(data = dat%>%filter(Date %in% as.Date(c("2021-11-06",
+                                                     "2021-06-12", "2021-09-18",
+                                                     "2021-06-05",
+                   "2020-05-30","2020-09-05",
+                   "2020-10-31","2021-02-06",
+                   "2019-06-01","2019-10-12",
+                   "2019-11-02","2020-01-25"))), 
+           aes(x = Date, y = Radiacion+50, label = round(Radiacion,0)),
+             angle = 90, 
+             vjust = 0,
+           hjust = 0.5, size = 3, fill = "#F8766D", color = "white")
+
+```
